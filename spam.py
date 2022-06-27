@@ -30,6 +30,8 @@ if __name__ == '__main__':
     sum, count, error = 0, 0, 0
 
     for id in db.keys():
+        if not id.isdigit():
+            continue
         sum += 1
         val = json.loads(db.get(id))
         if val.get('state') != 255: continue

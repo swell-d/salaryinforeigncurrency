@@ -166,7 +166,8 @@ def send_grafs(message_chat_id, params):
 
 if __name__ == '__main__':
     while True:
-        try:
-            bot.polling()
-        except:
-            time.sleep(60)
+        bot.polling()
+        # try:
+        #     bot.polling()
+        # except:
+        #     time.sleep(5)

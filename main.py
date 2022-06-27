@@ -41,7 +41,7 @@ db = redis.from_url(os.environ.get("REDIS_URL"))
 
 
 def user_is_new(message):
-    return str(message.chat.id) not in db.keys()
+    return db.exists(str(message.chat.id)) == 0
 
 
 @bot.message_handler(commands=['start'])
@@ -51,7 +51,7 @@ def start_command(message):
     bot.send_message(chat_id=211522613, text="Новый пользователь", reply_markup=renew_menu_markup)
     text = 'Выбери валюту своей текущей зарплаты'
     bot.send_message(chat_id=message.chat.id, text=text, reply_markup=start_menu_markup)
-    db.set(str(message.chat.id), {'state': 0})
+    db.hset(str(message.chat.id), {'state': 0})
 
 
 def send_float_error(message):
@@ -75,7 +75,7 @@ def new_text(message):
         start_command(message)
         return
 
-    val = db.get(str(message.chat.id))
+    val = db.hgetall(str(message.chat.id))
     if message.text == 'Справка':
         text = """Для вопросов и предложений: @swell_d
 Для расчёта используются официальные курсы ЦБ РФ. Обновление курсов происходит в полночь по Москве"""
@@ -89,7 +89,7 @@ def new_text(message):
         text = """Введи сумму"""
         bot.send_message(chat_id=message.chat.id, text=text)
         val['state'] = 1
-        db.set(str(message.chat.id), val)
+        db.hset(str(message.chat.id), val)
 
     elif val['state'] == 0 and message.text not in CURRENCIES:
         text = """Выбери валюту своей текущей зарплаты. Воспользуйся кнопками"""
@@ -102,14 +102,14 @@ def new_text(message):
         text = """Выбери частоту уведомлений"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=frequency_markup)
         val['state'] = 2
-        db.set(str(message.chat.id), val)
+        db.hset(str(message.chat.id), val)
 
     elif val['state'] == 2 and message.text in frequency:
         val['frequency'] = frequency.index(message.text)
         text = """Выбери интересующие тебя валюты, уведомления по которым ты хотел бы получать, а затем нажми 'Продолжить'"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=add_currency_markup)
         val['state'] = 3
-        db.set(str(message.chat.id), val)
+        db.hset(str(message.chat.id), val)
 
     elif val['state'] == 2 and message.text not in frequency:
         text = """Выбери частоту уведомлений. Воспользуйся кнопками"""
@@ -119,7 +119,7 @@ def new_text(message):
         if val.get('list_of_CURRENCIES') is None:
             val['list_of_CURRENCIES'] = CURRENCIES
         val['state'] = 255
-        db.set(str(message.chat.id), val)
+        db.hset(str(message.chat.id), val)
         send_salary(str(message.chat.id), val)
 
     elif val['state'] == 3 and message.text in CURRENCIES:
@@ -127,7 +127,7 @@ def new_text(message):
             val['list_of_CURRENCIES'] = []
         if message.text not in val['list_of_CURRENCIES']:
             val['list_of_CURRENCIES'] += [message.text]
-            db.set(str(message.chat.id), val)
+            db.hset(str(message.chat.id), val)
 
     elif val['state'] == 3 and message.text not in CURRENCIES + ['Продолжить']:
         text = """Выбери интересующие тебя валюты. Воспользуйся кнопками"""

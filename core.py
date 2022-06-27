@@ -19,13 +19,13 @@ else:
 
 
 def get_rate(cur_from, cur_to, date=datetime.strftime(datetime.now(), "%d/%m/%Y")):
-    if db.exists(str(date)) == 0:
+    if db.exists(date) == 0:
         response = requests.get(f"http://www.cbr.ru/scripts/XML_daily.asp", {"date_req": date})
         if response.status_code != 200: raise ConnectionError
-        response_content = response.text.decode('utf-8')
-        db.set(str(date), response_content)
+        response_content = response.text
+        db.set(date, response_content)
     else:
-        response_content = db.get(str(date))
+        response_content = str(db.get(date))
 
     if cur_from == "RUB":
         n1, v1 = 1, 1

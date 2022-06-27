@@ -1,10 +1,10 @@
+import json
 import os
 import time
 
 import redis
 import telebot
 from telebot import types
-from telebot.apihelper import ApiTelegramException
 
 from core import get_salary_text, get_graf, get_cbrf_text
 
@@ -42,7 +42,8 @@ db = redis.from_url(os.environ.get("REDIS_URL"))
 
 
 def user_is_new(message):
-    return db.exists(str(message.chat.id)) == 0
+    id = str(message.chat.id)
+    return db.exists(id) == 0
 
 
 @bot.message_handler(commands=['start'])
@@ -52,7 +53,10 @@ def start_command(message):
     bot.send_message(chat_id=211522613, text="Новый пользователь", reply_markup=renew_menu_markup)
     text = 'Выбери валюту своей текущей зарплаты'
     bot.send_message(chat_id=message.chat.id, text=text, reply_markup=start_menu_markup)
-    db.hmset(str(message.chat.id), {'state': 0})
+
+    id = str(message.chat.id)
+    val = {'state': 0}
+    db.set(id, json.dumps(val))
 
 
 def send_float_error(message):
@@ -72,11 +76,12 @@ def check_float(message):
 
 @bot.message_handler(content_types=["text"])
 def new_text(message):
+    id = str(message.chat.id)
     if user_is_new(message) or message.text == 'Сбросить':
         start_command(message)
         return
 
-    val = db.hgetall(str(message.chat.id))
+    val = json.loads(db.get(id))
     if message.text == 'Справка':
         text = """Для вопросов и предложений: @swell_d
 Для расчёта используются официальные курсы ЦБ РФ. Обновление курсов происходит в полночь по Москве"""
@@ -90,7 +95,7 @@ def new_text(message):
         text = """Введи сумму"""
         bot.send_message(chat_id=message.chat.id, text=text)
         val['state'] = 1
-        db.hmset(str(message.chat.id), val)
+        db.set(id, json.dumps(val))
 
     elif val['state'] == 0 and message.text not in CURRENCIES:
         text = """Выбери валюту своей текущей зарплаты. Воспользуйся кнопками"""
@@ -103,14 +108,14 @@ def new_text(message):
         text = """Выбери частоту уведомлений"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=frequency_markup)
         val['state'] = 2
-        db.hmset(str(message.chat.id), val)
+        db.set(id, json.dumps(val))
 
     elif val['state'] == 2 and message.text in frequency:
         val['frequency'] = frequency.index(message.text)
         text = """Выбери интересующие тебя валюты, уведомления по которым ты хотел бы получать, а затем нажми 'Продолжить'"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=add_currency_markup)
         val['state'] = 3
-        db.hmset(str(message.chat.id), val)
+        db.set(id, json.dumps(val))
 
     elif val['state'] == 2 and message.text not in frequency:
         text = """Выбери частоту уведомлений. Воспользуйся кнопками"""
@@ -120,25 +125,25 @@ def new_text(message):
         if val.get('list_of_CURRENCIES') is None:
             val['list_of_CURRENCIES'] = CURRENCIES
         val['state'] = 255
-        db.hmset(str(message.chat.id), val)
-        send_salary(str(message.chat.id), val)
+        db.set(id, json.dumps(val))
+        send_salary(id, val)
 
     elif val['state'] == 3 and message.text in CURRENCIES:
         if val.get('list_of_CURRENCIES') is None:
             val['list_of_CURRENCIES'] = []
         if message.text not in val['list_of_CURRENCIES']:
             val['list_of_CURRENCIES'] += [message.text]
-            db.hmset(str(message.chat.id), val)
+            db.set(id, json.dumps(val))
 
     elif val['state'] == 3 and message.text not in CURRENCIES + ['Продолжить']:
         text = """Выбери интересующие тебя валюты. Воспользуйся кнопками"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=add_currency_markup)
 
     elif val['state'] == 255 and message.text == 'Проверить':
-        send_salary(str(message.chat.id), val)
+        send_salary(id, val)
 
     elif val['state'] == 255 and message.text == 'Графики':
-        send_grafs(str(message.chat.id), val)
+        send_grafs(id, val)
 
     else:
         text = """Неизвестная команда"""

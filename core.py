@@ -1,25 +1,66 @@
 import io
+import json
+import os
+import re
 from datetime import datetime, timedelta
 
 import matplotlib.dates
 import matplotlib.pyplot as plt
+import redis
+import requests
 from dateutil.relativedelta import relativedelta
 
-currency_by_date = {}
+db = redis.from_url(os.environ.get("REDIS_URL"))
+
+if db.exists('currency_by_date'):
+    currency_by_date = json.loads(db.get('currency_by_date'))
+else:
+    currency_by_date = {}
+
+
+def get_rate(cur_from, cur_to, date=datetime.strftime(datetime.now(), "%d/%m/%Y")):
+    if db.exists(str(date)) == 0:
+        response = requests.get(f"http://www.cbr.ru/scripts/XML_daily.asp", {"date_req": date})
+        if response.status_code != 200: raise ConnectionError
+        response_content = response.text
+        db.set(str(date), response_content)
+    else:
+        response_content = db.get(str(date))
+
+    if cur_from == "RUB":
+        n1, v1 = 1, 1
+    else:
+        cur_from_p = re.compile(
+            r"<CharCode>" + cur_from + r"</CharCode><Nominal>(\d+)</Nominal><Name>.+?</Name><Value>([\d,]+?)</Value>")
+        cur_from_data = re.search(cur_from_p, response_content)
+        n1 = float(cur_from_data.group(1))
+        v1 = float(cur_from_data.group(2).replace(",", "."))
+
+    if cur_to == "RUB":
+        n2, v2 = 1, 1
+    else:
+        cur_to_p = re.compile(
+            r"<CharCode>" + cur_to + r"</CharCode><Nominal>(\d+)</Nominal><Name>.+?</Name><Value>([\d,]+?)</Value>")
+        cur_to_data = re.search(cur_to_p, response_content)
+        n2 = float(cur_to_data.group(1))
+        v2 = float(cur_to_data.group(2).replace(",", "."))
+
+    result = round(v1 / n1 / v2 * n2, 4)
+    if not result: raise ConnectionError
+    return result
 
 
 def get_rate_from_cache(currency_from, currency_to, date=None):
-    return 1
-    # if date is None: date = datetime.strftime(datetime.now(), "%Y-%m-%d")
-    # value = currency_by_date.get(date, {}).get(currency_from, {}).get(currency_to)
-    # if value is None:
-    #     if currency_by_date.get(date) is None: currency_by_date[date] = {}
-    #     if currency_by_date[date].get(currency_from) is None: currency_by_date[date][currency_from] = {}
-    #     date_parts = date.split('-')
-    #     value = Currency.get_rate(currency_from, currency_to, f"{date_parts[2]}/{date_parts[1]}/{date_parts[0]}")
-    #     currency_by_date[date][currency_from][currency_to] = value
-    #     currency_by_date_obj.save()
-    # return value
+    if date is None: date = datetime.strftime(datetime.now(), "%Y-%m-%d")
+    value = currency_by_date.get(date, {}).get(currency_from, {}).get(currency_to)
+    if value is None:
+        if currency_by_date.get(date) is None: currency_by_date[date] = {}
+        if currency_by_date[date].get(currency_from) is None: currency_by_date[date][currency_from] = {}
+        date_parts = date.split('-')
+        value = get_rate(currency_from, currency_to, f"{date_parts[2]}/{date_parts[1]}/{date_parts[0]}")
+        currency_by_date[date][currency_from][currency_to] = value
+        db.set('currency_by_date', json.dumps(currency_by_date))
+    return value
 
 
 def get_time_delta(notification_frequency):

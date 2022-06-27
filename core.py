@@ -22,7 +22,7 @@ def get_rate(cur_from, cur_to, date=datetime.strftime(datetime.now(), "%d/%m/%Y"
     if db.exists(str(date)) == 0:
         response = requests.get(f"http://www.cbr.ru/scripts/XML_daily.asp", {"date_req": date})
         if response.status_code != 200: raise ConnectionError
-        response_content = response.text
+        response_content = str(response.text)
         db.set(str(date), response_content)
     else:
         response_content = db.get(str(date))

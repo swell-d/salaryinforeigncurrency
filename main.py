@@ -169,5 +169,6 @@ if __name__ == '__main__':
     while True:
         try:
             bot.polling()
-        except:
+        except Exception as e:
+            print(e)
             time.sleep(10)

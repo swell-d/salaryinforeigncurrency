@@ -5,6 +5,8 @@ import redis
 import telebot
 from telebot import types
 
+from core import get_salary_text, get_graf, get_cbrf_text
+
 bot = telebot.TeleBot(os.environ['SALARYINFOREIGNCURRENCY_BOT'])
 
 CURRENCIES = ['RUB', 'UAH', 'BYN',
@@ -38,9 +40,128 @@ renew_menu_markup.row(*renew_menu_items[3:5])
 db = redis.from_url(os.environ.get("REDIS_URL"))
 
 
+def user_is_new(message):
+    return str(message.chat.id) not in db.keys()
+
+
 @bot.message_handler(commands=['start'])
 def start_command(message):
-    bot.send_message(chat_id=message.chat.id, text='test')
+    text = 'Привет! Этот бот умеет конвертировать твою текущую зарплату в другие валюты и присылать тебе регулярные уведомления о её изменениях в популярных валютах мира, а ещё - строить графики'
+    bot.send_message(chat_id=message.chat.id, text=text)
+    bot.send_message(chat_id=211522613, text="Новый пользователь", reply_markup=renew_menu_markup)
+    text = 'Выбери валюту своей текущей зарплаты'
+    bot.send_message(chat_id=message.chat.id, text=text, reply_markup=start_menu_markup)
+    db.set(str(message.chat.id), {'state': 0})
+
+
+def send_float_error(message):
+    text = """Неверный формат. Попробуй ещё раз. Введи сумму, например 50000"""
+    bot.send_message(chat_id=message.chat.id, text=text)
+    return False
+
+
+def check_float(message):
+    try:
+        value = float(message.text.replace(',', '.').replace(' ', '').strip())
+        if value <= 0: return send_float_error(message)
+        return value
+    except:
+        return send_float_error(message)
+
+
+@bot.message_handler(content_types=["text"])
+def new_text(message):
+    if user_is_new(message) or message.text == 'Сбросить':
+        start_command(message)
+        return
+
+    val = db.get(str(message.chat.id))
+    if message.text == 'Справка':
+        text = """Для вопросов и предложений: @swell_d
+Для расчёта используются официальные курсы ЦБ РФ. Обновление курсов происходит в полночь по Москве"""
+        bot.send_message(chat_id=message.chat.id, text=text, reply_markup=renew_menu_markup)
+
+    elif message.text == 'Курс ЦБ':
+        send_cbrf(message.chat.id, val)
+
+    elif val['state'] == 0 and message.text in CURRENCIES:
+        val['currency'] = message.text
+        text = """Введи сумму"""
+        bot.send_message(chat_id=message.chat.id, text=text)
+        val['state'] = 1
+        db.set(str(message.chat.id), val)
+
+    elif val['state'] == 0 and message.text not in CURRENCIES:
+        text = """Выбери валюту своей текущей зарплаты. Воспользуйся кнопками"""
+        bot.send_message(chat_id=message.chat.id, text=text, reply_markup=start_menu_markup)
+
+    elif val['state'] == 1:
+        value = check_float(message)
+        if not value: return
+        val['salary'] = value
+        text = """Выбери частоту уведомлений"""
+        bot.send_message(chat_id=message.chat.id, text=text, reply_markup=frequency_markup)
+        val['state'] = 2
+        db.set(str(message.chat.id), val)
+
+    elif val['state'] == 2 and message.text in frequency:
+        val['frequency'] = frequency.index(message.text)
+        text = """Выбери интересующие тебя валюты, уведомления по которым ты хотел бы получать, а затем нажми 'Продолжить'"""
+        bot.send_message(chat_id=message.chat.id, text=text, reply_markup=add_currency_markup)
+        val['state'] = 3
+        db.set(str(message.chat.id), val)
+
+    elif val['state'] == 2 and message.text not in frequency:
+        text = """Выбери частоту уведомлений. Воспользуйся кнопками"""
+        bot.send_message(chat_id=message.chat.id, text=text, reply_markup=frequency_markup)
+
+    elif val['state'] == 3 and message.text in ['Продолжить']:
+        if val.get('list_of_CURRENCIES') is None:
+            val['list_of_CURRENCIES'] = CURRENCIES
+        val['state'] = 255
+        db.set(str(message.chat.id), val)
+        send_salary(str(message.chat.id), val)
+
+    elif val['state'] == 3 and message.text in CURRENCIES:
+        if val.get('list_of_CURRENCIES') is None:
+            val['list_of_CURRENCIES'] = []
+        if message.text not in val['list_of_CURRENCIES']:
+            val['list_of_CURRENCIES'] += [message.text]
+            db.set(str(message.chat.id), val)
+
+    elif val['state'] == 3 and message.text not in CURRENCIES + ['Продолжить']:
+        text = """Выбери интересующие тебя валюты. Воспользуйся кнопками"""
+        bot.send_message(chat_id=message.chat.id, text=text, reply_markup=add_currency_markup)
+
+    elif val['state'] == 255 and message.text == 'Проверить':
+        send_salary(str(message.chat.id), val)
+
+    elif val['state'] == 255 and message.text == 'Графики':
+        send_grafs(str(message.chat.id), val)
+
+    else:
+        text = """Неизвестная команда"""
+        bot.send_message(chat_id=message.chat.id, text=text, reply_markup=renew_menu_markup)
+        bot.send_message(chat_id=211522613, text=f"{message.chat.id} -> {message.text}", reply_markup=renew_menu_markup)
+
+
+def send_salary(message_chat_id, params):
+    text = get_salary_text(params)
+    bot.send_message(chat_id=int(message_chat_id), text=text, reply_markup=renew_menu_markup)
+
+
+def send_cbrf(message_chat_id, params):
+    text = get_cbrf_text(params)
+    bot.send_message(chat_id=int(message_chat_id), text=text, reply_markup=renew_menu_markup)
+
+
+def send_grafs(message_chat_id, params):
+    salary = params.get('salary', 0)
+    currency_from = params.get('currency', 'RUB')
+    for currency_to in params.get('list_of_CURRENCIES', CURRENCIES):
+        if currency_to == currency_from: continue
+        graf = get_graf(currency_from, currency_to, salary)
+        bot.send_photo(chat_id=int(message_chat_id), photo=graf, reply_markup=renew_menu_markup)
 
 
 if __name__ == '__main__':

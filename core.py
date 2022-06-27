@@ -59,7 +59,6 @@ def get_rate_from_cache(currency_from, currency_to, date=None):
         date_parts = date.split('-')
         value = get_rate(currency_from, currency_to, f"{date_parts[2]}/{date_parts[1]}/{date_parts[0]}")
         currency_by_date[date][currency_from][currency_to] = value
-        db.set('currency_by_date', json.dumps(currency_by_date))
     return value
 
 
@@ -120,6 +119,8 @@ def get_graf(currency_from, currency_to, salary):
     salaries = []
     for day in dates:
         salaries.append(salary * get_rate_from_cache(currency_from, currency_to, day))
+    db.set('currency_by_date', json.dumps(currency_by_date))
+
     _, ax = plt.subplots(1, 1)
     plt.title(f"{salary:.2f} {currency_from} -> {currency_to}")
     ax.plot(dates, salaries)

@@ -122,17 +122,17 @@ def new_text(message):
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=frequency_markup)
 
     elif val['state'] == 3 and message.text in ['Продолжить']:
-        if val.get('list_of_CURRENCIES') is None:
-            val['list_of_CURRENCIES'] = CURRENCIES
+        if val.get('list_of_currencies') is None:
+            val['list_of_currencies'] = CURRENCIES
         val['state'] = 255
         db.set(id, json.dumps(val))
         send_salary(id, val)
 
     elif val['state'] == 3 and message.text in CURRENCIES:
-        if val.get('list_of_CURRENCIES') is None:
-            val['list_of_CURRENCIES'] = []
-        if message.text not in val['list_of_CURRENCIES']:
-            val['list_of_CURRENCIES'] += [message.text]
+        if val.get('list_of_currencies') is None:
+            val['list_of_currencies'] = []
+        if message.text not in val['list_of_currencies']:
+            val['list_of_currencies'] += [message.text]
             db.set(id, json.dumps(val))
 
     elif val['state'] == 3 and message.text not in CURRENCIES + ['Продолжить']:
@@ -164,7 +164,7 @@ def send_cbrf(message_chat_id, params):
 def send_grafs(message_chat_id, params):
     salary = params.get('salary', 0)
     currency_from = params.get('currency', 'RUB')
-    for currency_to in params.get('list_of_CURRENCIES', CURRENCIES):
+    for currency_to in params.get('list_of_currencies', CURRENCIES):
         if currency_to == currency_from: continue
         graf = get_graf(currency_from, currency_to, salary)
         bot.send_photo(chat_id=int(message_chat_id), photo=graf, reply_markup=renew_menu_markup)

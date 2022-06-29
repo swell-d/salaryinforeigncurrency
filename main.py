@@ -2,13 +2,16 @@ import json
 import os
 import time
 
+from flask import Flask, request
 import redis
 import telebot
 from telebot import types
 
 from core import get_salary_text, get_graf, get_cbrf_text
 
-bot = telebot.TeleBot(os.environ['SALARYINFOREIGNCURRENCY_BOT'])
+TOKEN = os.environ['SALARYINFOREIGNCURRENCY_BOT']
+bot = telebot.TeleBot(TOKEN)
+server = Flask(__name__)
 
 CURRENCIES = ['RUB', 'UAH', 'BYN',
               'USD', 'EUR', 'GBP']
@@ -170,10 +173,20 @@ def send_grafs(message_chat_id, params):
         bot.send_photo(chat_id=int(message_chat_id), photo=graf, reply_markup=renew_menu_markup)
 
 
-if __name__ == '__main__':
-    while True:
-        try:
-            bot.polling()
-        except Exception as e:
-            print(e)
-            time.sleep(1)
+@server.route('/' + TOKEN, methods=['POST'])
+def getMessage():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
+
+
+@server.route("/")
+def webhook():
+    bot.remove_webhook()
+    bot.set_webhook(url='https://your_heroku_project.com/' + TOKEN)
+    return "!", 200
+
+
+if __name__ == "__main__":
+    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))

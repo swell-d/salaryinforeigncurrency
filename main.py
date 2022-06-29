@@ -10,6 +10,8 @@ from telebot import types
 from core import get_salary_text, get_graf, get_cbrf_text
 
 TOKEN = os.environ['SALARYINFOREIGNCURRENCY_BOT']
+URL = 'https://salaryinforeigncurrency.herokuapp.com/'
+
 bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
 
@@ -184,7 +186,7 @@ def getMessage():
 @server.route("/")
 def webhook():
     bot.remove_webhook()
-    bot.set_webhook(url='https://your_heroku_project.com/' + TOKEN)
+    bot.set_webhook(URL + TOKEN)
     return "!", 200
 
 

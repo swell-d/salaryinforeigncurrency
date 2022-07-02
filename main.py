@@ -89,7 +89,8 @@ def new_text(message):
     val = json.loads(db.get(id))
     if message.text == 'Справка':
         text = """Для вопросов и предложений: @swell_d
-Для расчёта используются официальные курсы ЦБ РФ. Обновление курсов происходит в полночь по Москве"""
+Для расчёта используются официальные курсы ЦБ РФ. Обновление курсов происходит в полночь по Москве
+Код бота в открытом доступе: https://github.com/swell-d/salaryinforeigncurrency"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=renew_menu_markup)
 
     elif message.text == 'Курс ЦБ':

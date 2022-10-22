@@ -16,17 +16,20 @@ bot = telebot.TeleBot(TOKEN)
 server = Flask(__name__)
 
 CURRENCIES = ['RUB', 'UAH', 'BYN',
-              'USD', 'EUR', 'GBP']
+              'USD', 'EUR', 'GBP',
+              'SEK', 'TRY']
 
 start_menu_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 start_menu_items = [types.KeyboardButton(each) for each in CURRENCIES]
 start_menu_markup.row(*CURRENCIES[0:3])
 start_menu_markup.row(*CURRENCIES[3:6])
+start_menu_markup.row(*CURRENCIES[6:8])
 
 add_currency_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 add_currency_items = [types.KeyboardButton(each) for each in CURRENCIES + ['Продолжить']]
 add_currency_markup.row(*CURRENCIES[0:3])
 add_currency_markup.row(*CURRENCIES[3:6])
+add_currency_markup.row(*CURRENCIES[6:8])
 add_currency_markup.row('Продолжить')
 
 frequency = ['Ежедневно', 'Еженедельно',

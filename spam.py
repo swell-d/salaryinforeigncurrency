@@ -1,16 +1,16 @@
-import json
 import os
 import time
 from datetime import datetime
 
-import redis
 import telebot
 from telebot import types
 
+import WorkWithJSON
 from core import get_salary_text
 
 bot = telebot.TeleBot(os.environ['SALARYINFOREIGNCURRENCY_BOT'])
-db = redis.from_url(os.environ.get("REDIS_URL"))
+db_filename = 'db.json'
+db = WorkWithJSON.load_dict_from_json(db_filename)
 
 renew_menu = ['Проверить', 'Курс ЦБ', 'Графики',
               'Справка', 'Сбросить']
@@ -33,7 +33,7 @@ if __name__ == '__main__':
         if not id.isdigit():
             continue
         sum += 1
-        val = json.loads(db.get(id))
+        val = db.get(id)
         if val.get('state') != 255: continue
         if (val.get('frequency') == 0) \
                 or (val.get('frequency') == 1 and datetime.today().isoweekday() == 1) \

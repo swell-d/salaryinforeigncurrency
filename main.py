@@ -2,18 +2,13 @@ import json
 import os
 import time
 
-from flask import Flask, request
-import redis
 import telebot
 from telebot import types
 
+import WorkWithJSON
 from core import get_salary_text, get_graf, get_cbrf_text
 
-TOKEN = os.environ['SALARYINFOREIGNCURRENCY_BOT']
-URL = 'https://salaryinforeigncurrency.herokuapp.com/'
-
-bot = telebot.TeleBot(TOKEN)
-server = Flask(__name__)
+bot = telebot.TeleBot(os.environ['SALARYINFOREIGNCURRENCY_BOT'])
 
 CURRENCIES = ['RUB', 'UAH', 'BYN',
               'USD', 'EUR', 'GBP',
@@ -46,12 +41,13 @@ renew_menu_items = [types.KeyboardButton(each) for each in renew_menu]
 renew_menu_markup.row(*renew_menu_items[0:3])
 renew_menu_markup.row(*renew_menu_items[3:5])
 
-db = redis.from_url(os.environ.get("REDIS_URL"))
+db_filename = 'db.json'
+db = WorkWithJSON.load_dict_from_json(db_filename)
 
 
 def user_is_new(message):
     id = str(message.chat.id)
-    return db.exists(id) == 0
+    return db.get(id) is None
 
 
 @bot.message_handler(commands=['start'])
@@ -64,7 +60,8 @@ def start_command(message):
 
     id = str(message.chat.id)
     val = {'state': 0}
-    db.set(id, json.dumps(val))
+    db[id] = json.dumps(val)
+    WorkWithJSON.save_dict_to_json(db, db_filename)
 
 
 def send_float_error(message):
@@ -89,7 +86,9 @@ def new_text(message):
         start_command(message)
         return
 
-    val = json.loads(db.get(id))
+    print(message.text)
+
+    val = db.get(id)
     if message.text == 'Справка':
         text = """Для вопросов и предложений: @swell_d
 Для расчёта используются официальные курсы ЦБ РФ. Обновление курсов происходит в полночь по Москве
@@ -104,7 +103,8 @@ def new_text(message):
         text = """Введи сумму"""
         bot.send_message(chat_id=message.chat.id, text=text)
         val['state'] = 1
-        db.set(id, json.dumps(val))
+        db[id] = json.dumps(val)
+        WorkWithJSON.save_dict_to_json(db, db_filename)
 
     elif val['state'] == 0 and message.text not in CURRENCIES:
         text = """Выбери валюту своей текущей зарплаты. Воспользуйся кнопками"""
@@ -117,14 +117,16 @@ def new_text(message):
         text = """Выбери частоту уведомлений"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=frequency_markup)
         val['state'] = 2
-        db.set(id, json.dumps(val))
+        db[id] = json.dumps(val)
+        WorkWithJSON.save_dict_to_json(db, db_filename)
 
     elif val['state'] == 2 and message.text in frequency:
         val['frequency'] = frequency.index(message.text)
         text = """Выбери интересующие тебя валюты, уведомления по которым ты хотел бы получать, а затем нажми 'Продолжить'"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=add_currency_markup)
         val['state'] = 3
-        db.set(id, json.dumps(val))
+        db[id] = json.dumps(val)
+        WorkWithJSON.save_dict_to_json(db, db_filename)
 
     elif val['state'] == 2 and message.text not in frequency:
         text = """Выбери частоту уведомлений. Воспользуйся кнопками"""
@@ -134,7 +136,8 @@ def new_text(message):
         if val.get('list_of_currencies') is None:
             val['list_of_currencies'] = CURRENCIES
         val['state'] = 255
-        db.set(id, json.dumps(val))
+        db[id] = json.dumps(val)
+        WorkWithJSON.save_dict_to_json(db, db_filename)
         send_salary(id, val)
 
     elif val['state'] == 3 and message.text in CURRENCIES:
@@ -142,7 +145,8 @@ def new_text(message):
             val['list_of_currencies'] = []
         if message.text not in val['list_of_currencies']:
             val['list_of_currencies'] += [message.text]
-            db.set(id, json.dumps(val))
+            db[id] = json.dumps(val)
+            WorkWithJSON.save_dict_to_json(db, db_filename)
 
     elif val['state'] == 3 and message.text not in CURRENCIES + ['Продолжить']:
         text = """Выбери интересующие тебя валюты. Воспользуйся кнопками"""
@@ -179,23 +183,9 @@ def send_grafs(message_chat_id, params):
         bot.send_photo(chat_id=int(message_chat_id), photo=graf, reply_markup=renew_menu_markup)
 
 
-@server.route('/' + TOKEN, methods=['POST'])
-def getMessage():
-    json_string = request.get_data().decode('utf-8')
-    update = telebot.types.Update.de_json(json_string)
-    bot.process_new_updates([update])
-    return "!", 200
-
-
-@server.route("/")
-def webhook():
-    bot.remove_webhook()
-    bot.set_webhook(URL + TOKEN)
-    json_dict = {}
-    for id in db.keys():
-        json_dict[id] = json.loads(db.get(id))
-    return json.dumps(json_dict), 200
-
-
 if __name__ == "__main__":
-    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+    while True:
+        try:
+            bot.polling()
+        except:
+            time.sleep(60)

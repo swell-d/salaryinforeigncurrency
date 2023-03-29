@@ -1,29 +1,30 @@
 import io
 import json
-import os
 import re
 from datetime import datetime, timedelta
 
 import matplotlib.dates
 import matplotlib.pyplot as plt
-import redis
 import requests
 from dateutil.relativedelta import relativedelta
 
-db = redis.from_url(os.environ.get("REDIS_URL"))
+import WorkWithJSON
 
-if db.exists('currency_by_date'):
-    currency_by_date = json.loads(db.get('currency_by_date'))
+db_filename = 'db.json'
+db = WorkWithJSON.load_dict_from_json(db_filename)
+
+if db.get('currency_by_date'):
+    currency_by_date = db.get('currency_by_date')
 else:
     currency_by_date = {}
 
 
 def get_rate(cur_from, cur_to, date=datetime.strftime(datetime.now(), "%d/%m/%Y")):
-    if db.exists(date) == 0:
+    if db.get(date) is None:
         response = requests.get(f"http://www.cbr.ru/scripts/XML_daily.asp", {"date_req": date})
         if response.status_code != 200: raise ConnectionError
         response_content = response.text
-        db.set(date, response_content)
+        db[date] = response_content
     else:
         response_content = str(db.get(date))
 
@@ -119,7 +120,7 @@ def get_graf(currency_from, currency_to, salary):
     salaries = []
     for day in dates:
         salaries.append(salary * get_rate_from_cache(currency_from, currency_to, day))
-    db.set('currency_by_date', json.dumps(currency_by_date))
+    db['currency_by_date'] = json.dumps(currency_by_date)
 
     _, ax = plt.subplots(1, 1)
     plt.title(f"{salary:.2f} {currency_from} -> {currency_to}")

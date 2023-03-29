@@ -22,6 +22,7 @@ def get_rate(cur_from, cur_to, date=datetime.strftime(datetime.now(), "%d/%m/%Y"
         if response.status_code != 200: raise ConnectionError
         response_content = response.text
         db[date] = response_content
+        WorkWithJSON.save_dict_to_json(db, db_filename)
     else:
         response_content = str(db.get(date))
 
@@ -118,6 +119,7 @@ def get_graf(currency_from, currency_to, salary):
     for day in dates:
         salaries.append(salary * get_rate_from_cache(currency_from, currency_to, day))
     db['currency_by_date'] = currency_by_date
+    WorkWithJSON.save_dict_to_json(db, db_filename)
 
     _, ax = plt.subplots(1, 1)
     plt.title(f"{salary:.2f} {currency_from} -> {currency_to}")

@@ -2,7 +2,8 @@ name: salaryinforeigncurrency CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: 
+      - main
 
 jobs:
   build:

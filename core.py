@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 
 import WorkWithJSON
 
-db_filename = 'db.json'
+db_filename = 'currency.json'
 db = WorkWithJSON.load_dict_from_json(db_filename)
 
 currency_by_date = db.get('currency_by_date') if db.get('currency_by_date') else {}

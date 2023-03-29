@@ -11,20 +11,20 @@ from dateutil.relativedelta import relativedelta
 import WorkWithJSON
 
 db_filename = 'currency.json'
-db = WorkWithJSON.load_dict_from_json(db_filename)
+db_currency = WorkWithJSON.load_dict_from_json(db_filename)
 
-currency_by_date = db.get('currency_by_date') if db.get('currency_by_date') else {}
+currency_by_date = db_currency.get('currency_by_date') if db_currency.get('currency_by_date') else {}
 
 
 def get_rate(cur_from, cur_to, date=datetime.strftime(datetime.now(), "%d/%m/%Y")):
-    if db.get(date) is None:
+    if db_currency.get(date) is None:
         response = requests.get(f"http://www.cbr.ru/scripts/XML_daily.asp", {"date_req": date})
         if response.status_code != 200: raise ConnectionError
         response_content = response.text
-        db[date] = response_content
-        WorkWithJSON.save_dict_to_json(db, db_filename)
+        db_currency[date] = response_content
+        WorkWithJSON.save_dict_to_json(db_currency, db_filename)
     else:
-        response_content = str(db.get(date))
+        response_content = str(db_currency.get(date))
 
     if cur_from == "RUB":
         n1, v1 = 1, 1
@@ -118,8 +118,8 @@ def get_graf(currency_from, currency_to, salary):
     salaries = []
     for day in dates:
         salaries.append(salary * get_rate_from_cache(currency_from, currency_to, day))
-    db['currency_by_date'] = currency_by_date
-    WorkWithJSON.save_dict_to_json(db, db_filename)
+    db_currency['currency_by_date'] = currency_by_date
+    WorkWithJSON.save_dict_to_json(db_currency, db_filename)
 
     _, ax = plt.subplots(1, 1)
     plt.title(f"{salary:.2f} {currency_from} -> {currency_to}")

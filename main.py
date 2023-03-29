@@ -86,8 +86,6 @@ def new_text(message):
         start_command(message)
         return
 
-    print(message.text)
-
     val = db.get(id)
     if message.text == 'Справка':
         text = """Для вопросов и предложений: @swell_d

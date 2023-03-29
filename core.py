@@ -13,10 +13,7 @@ import WorkWithJSON
 db_filename = 'db.json'
 db = WorkWithJSON.load_dict_from_json(db_filename)
 
-if db.get('currency_by_date'):
-    currency_by_date = db.get('currency_by_date')
-else:
-    currency_by_date = {}
+currency_by_date = db.get('currency_by_date') if db.get('currency_by_date') else {}
 
 
 def get_rate(cur_from, cur_to, date=datetime.strftime(datetime.now(), "%d/%m/%Y")):
@@ -120,7 +117,7 @@ def get_graf(currency_from, currency_to, salary):
     salaries = []
     for day in dates:
         salaries.append(salary * get_rate_from_cache(currency_from, currency_to, day))
-    db['currency_by_date'] = json.dumps(currency_by_date)
+    db['currency_by_date'] = currency_by_date
 
     _, ax = plt.subplots(1, 1)
     plt.title(f"{salary:.2f} {currency_from} -> {currency_to}")

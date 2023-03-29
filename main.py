@@ -191,11 +191,7 @@ def getMessage():
 def webhook():
     bot.remove_webhook()
     bot.set_webhook(URL + TOKEN)
-    json_dict = {}
-    for id in db.keys():
-        json_dict[id] = json.loads(db.get(id))
-    return json.dumps(json_dict), 200
-  
+    return "!", 200
 
 
 if __name__ == "__main__":

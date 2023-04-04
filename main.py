@@ -60,7 +60,7 @@ def start_command(message):
 
     id = str(message.chat.id)
     val = {'state': 0}
-    db[id] = json.dumps(val)
+    db[id] = val
     WorkWithJSON.save_dict_to_json(db, db_filename)
 
 
@@ -101,7 +101,7 @@ def new_text(message):
         text = """Введи сумму"""
         bot.send_message(chat_id=message.chat.id, text=text)
         val['state'] = 1
-        db[id] = json.dumps(val)
+        db[id] = val
         WorkWithJSON.save_dict_to_json(db, db_filename)
 
     elif val['state'] == 0 and message.text not in CURRENCIES:
@@ -115,7 +115,7 @@ def new_text(message):
         text = """Выбери частоту уведомлений"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=frequency_markup)
         val['state'] = 2
-        db[id] = json.dumps(val)
+        db[id] = val
         WorkWithJSON.save_dict_to_json(db, db_filename)
 
     elif val['state'] == 2 and message.text in frequency:
@@ -123,7 +123,7 @@ def new_text(message):
         text = """Выбери интересующие тебя валюты, уведомления по которым ты хотел бы получать, а затем нажми 'Продолжить'"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=add_currency_markup)
         val['state'] = 3
-        db[id] = json.dumps(val)
+        db[id] = val
         WorkWithJSON.save_dict_to_json(db, db_filename)
 
     elif val['state'] == 2 and message.text not in frequency:
@@ -134,7 +134,7 @@ def new_text(message):
         if val.get('list_of_currencies') is None:
             val['list_of_currencies'] = CURRENCIES
         val['state'] = 255
-        db[id] = json.dumps(val)
+        db[id] = val
         WorkWithJSON.save_dict_to_json(db, db_filename)
         send_salary(id, val)
 
@@ -143,7 +143,7 @@ def new_text(message):
             val['list_of_currencies'] = []
         if message.text not in val['list_of_currencies']:
             val['list_of_currencies'] += [message.text]
-            db[id] = json.dumps(val)
+            db[id] = val
             WorkWithJSON.save_dict_to_json(db, db_filename)
 
     elif val['state'] == 3 and message.text not in CURRENCIES + ['Продолжить']:

@@ -1,4 +1,4 @@
-import json
+import codecs
 import os
 import time
 
@@ -8,7 +8,9 @@ from telebot import types
 import WorkWithJSON
 from core import get_salary_text, get_graf, get_cbrf_text
 
-bot = telebot.TeleBot(os.environ['SALARYINFOREIGNCURRENCY_BOT'])
+with codecs.open("api.key", 'r', 'utf-8') as file:
+    key = file.read().strip()
+bot = telebot.TeleBot(key)
 
 CURRENCIES = ['RUB', 'UAH', 'BYN',
               'USD', 'EUR', 'GBP',

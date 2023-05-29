@@ -1,5 +1,4 @@
 import codecs
-import os
 import time
 
 import telebot
@@ -12,21 +11,25 @@ with codecs.open("api.key", 'r', 'utf-8') as file:
     key = file.read().strip()
 bot = telebot.TeleBot(key)
 
+ALL_CURRENCIES = ['AUD', 'AZN', 'GBP', 'AMD', 'BYN', 'BGN', 'BRL', 'HUF', 'VND', 'HKD', 'GEL', 'DKK', 'AED', 'USD',
+                  'EUR', 'EGP', 'INR', 'IDR', 'KZT', 'CAD', 'QAR', 'KGS', 'CNY', 'MDL', 'NZD', 'NOK', 'PLN', 'RON',
+                  'XDR', 'SGD', 'TJS', 'THB', 'TRY', 'TMT', 'UZS', 'UAH', 'CZK', 'SEK', 'CHF', 'RSD', 'ZAR', 'KRW',
+                  'JPY']
 CURRENCIES = ['RUB', 'UAH', 'BYN',
               'USD', 'EUR', 'GBP',
-              'SEK', 'TRY']
+              'SEK', 'TRY', 'THB']
 
 start_menu_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 start_menu_items = [types.KeyboardButton(each) for each in CURRENCIES]
 start_menu_markup.row(*CURRENCIES[0:3])
 start_menu_markup.row(*CURRENCIES[3:6])
-start_menu_markup.row(*CURRENCIES[6:8])
+start_menu_markup.row(*CURRENCIES[6:9])
 
 add_currency_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 add_currency_items = [types.KeyboardButton(each) for each in CURRENCIES + ['Продолжить']]
 add_currency_markup.row(*CURRENCIES[0:3])
 add_currency_markup.row(*CURRENCIES[3:6])
-add_currency_markup.row(*CURRENCIES[6:8])
+add_currency_markup.row(*CURRENCIES[6:9])
 add_currency_markup.row('Продолжить')
 
 frequency = ['Ежедневно', 'Еженедельно',
@@ -54,10 +57,11 @@ def user_is_new(message):
 
 @bot.message_handler(commands=['start'])
 def start_command(message):
-    text = 'Привет! Этот бот умеет конвертировать твою текущую зарплату в другие валюты и присылать тебе регулярные уведомления о её изменениях в популярных валютах мира, а ещё - строить графики'
+    text = 'Привет! Этот бот умеет конвертировать твою текущую зарплату в другие валюты и присылать тебе регулярные ' \
+           'уведомления о её изменениях в популярных валютах мира, а ещё - строить графики'
     bot.send_message(chat_id=message.chat.id, text=text)
     bot.send_message(chat_id=211522613, text="Новый пользователь", reply_markup=renew_menu_markup)
-    text = 'Выбери валюту своей текущей зарплаты'
+    text = 'Выбери валюту своей текущей зарплаты. Воспользуйся кнопками или отправь трёхбуквенный код валюты'
     bot.send_message(chat_id=message.chat.id, text=text, reply_markup=start_menu_markup)
 
     id = str(message.chat.id)
@@ -98,7 +102,7 @@ def new_text(message):
     elif message.text == 'Курс ЦБ':
         send_cbrf(message.chat.id, val)
 
-    elif val['state'] == 0 and message.text in CURRENCIES:
+    elif val['state'] == 0 and message.text in ALL_CURRENCIES:
         val['currency'] = message.text
         text = """Введи сумму"""
         bot.send_message(chat_id=message.chat.id, text=text)
@@ -106,8 +110,8 @@ def new_text(message):
         db[id] = val
         WorkWithJSON.save_dict_to_json(db, db_filename)
 
-    elif val['state'] == 0 and message.text not in CURRENCIES:
-        text = """Выбери валюту своей текущей зарплаты. Воспользуйся кнопками"""
+    elif val['state'] == 0 and message.text not in ALL_CURRENCIES:
+        text = """Выбери валюту своей текущей зарплаты. Воспользуйся кнопками или отправь трёхбуквенный код валюты"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=start_menu_markup)
 
     elif val['state'] == 1:
@@ -122,7 +126,8 @@ def new_text(message):
 
     elif val['state'] == 2 and message.text in frequency:
         val['frequency'] = frequency.index(message.text)
-        text = """Выбери интересующие тебя валюты, уведомления по которым ты хотел бы получать, а затем нажми 'Продолжить'"""
+        text = "Выбери интересующие тебя валюты, уведомления по которым ты хотел бы получать, а затем нажми " \
+               "'Продолжить'. Воспользуйся кнопками или отправь трёхбуквенный код валюты"
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=add_currency_markup)
         val['state'] = 3
         db[id] = val
@@ -140,7 +145,7 @@ def new_text(message):
         WorkWithJSON.save_dict_to_json(db, db_filename)
         send_salary(id, val)
 
-    elif val['state'] == 3 and message.text in CURRENCIES:
+    elif val['state'] == 3 and message.text in ALL_CURRENCIES:
         if val.get('list_of_currencies') is None:
             val['list_of_currencies'] = []
         if message.text not in val['list_of_currencies']:
@@ -148,8 +153,8 @@ def new_text(message):
             db[id] = val
             WorkWithJSON.save_dict_to_json(db, db_filename)
 
-    elif val['state'] == 3 and message.text not in CURRENCIES + ['Продолжить']:
-        text = """Выбери интересующие тебя валюты. Воспользуйся кнопками"""
+    elif val['state'] == 3 and message.text not in ALL_CURRENCIES + ['Продолжить']:
+        text = """Выбери интересующие тебя валюты. Воспользуйся кнопками или отправь трёхбуквенный код валюты"""
         bot.send_message(chat_id=message.chat.id, text=text, reply_markup=add_currency_markup)
 
     elif val['state'] == 255 and message.text == 'Проверить':

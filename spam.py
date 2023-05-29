@@ -34,6 +34,7 @@ if __name__ == '__main__':
             continue
         sum += 1
         val = db.get(id)
+        if not isinstance(val, dict): continue
         if val.get('state') != 255: continue
         if (val.get('frequency') == 0) \
                 or (val.get('frequency') == 1 and datetime.today().isoweekday() == 1) \
